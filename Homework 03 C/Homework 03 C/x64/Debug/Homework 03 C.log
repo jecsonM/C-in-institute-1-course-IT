@@ -1,5 +1,0 @@
-﻿  H03 Bulls And  Cows.c
-D:\C IT 1 course\Homework 03 C\H03 Bulls And  Cows.c(147,19): warning C4013: MakeNumberAllOneSign: нет определения; предполагается "extern" с возвратом типа "int"
-D:\C IT 1 course\Homework 03 C\H03 Bulls And  Cows.c(180,18): warning C4013: time: нет определения; предполагается "extern" с возвратом типа "int"
-D:\C IT 1 course\Homework 03 C\H03 Bulls And  Cows.c(160,1): warning C4716: GameLoop: должна возвращать значение
-  Homework 03 C.vcxproj -> D:\C IT 1 course\Homework 03 C\x64\Debug\Homework 03 C.exe
