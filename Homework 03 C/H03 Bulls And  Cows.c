@@ -38,9 +38,9 @@ struct Guess
 };
 
 struct Game {
-	int knownNumber;  // 0000 -> 0204 лучшая догадка
+	int bestGuess;  // 0000 -> 0204 лучшая догадка
 	int knownMasc;    // 0000b -> 0101b какие битовые флаги о том, какие цифры известны
-	int* knownComposition; // {0, ..., 0} -> { 0, 0, 1, 0, 1, 0 } из каких цифр состоит
+	int* knownComposition; // { 0, 0, 1, 0, 1, 0 } из каких цифр состоит
 
 	int MysterNumber; //загаданное число
 	struct Guess* guessHistory;
@@ -146,7 +146,7 @@ void LogMove(const struct Game* game)
 }
 
 //Наименьшее из цифр
-int makeBestGuessedNumber(int* knownComposition)
+int makeLowestNumber(int* knownComposition)
 {
 	int digitPlace = 1;
 	int number = 0;
@@ -164,6 +164,39 @@ int makeBestGuessedNumber(int* knownComposition)
 		digitPlace *= DIFFRENT_SIGNS_AMOUNT;
 	}
 	return number;
+}
+
+
+//i и j
+int CheckIfTwoSignsAreSame(int number, int indI, int indJ)
+{
+	
+	indI = MYSTERY_NUMBER_LENGTH - indI - 1;
+	indJ = MYSTERY_NUMBER_LENGTH - indJ - 1;
+
+	if (indI > indJ)
+	{
+		int m = indI;
+		indI = indJ;
+		indJ = m;
+	}
+
+	int digitPlace = 1;
+	for (int i = 0; i < indI; i++)
+	{
+		digitPlace *= DIFFRENT_SIGNS_AMOUNT;
+	}
+	int signI = (number / digitPlace) % DIFFRENT_SIGNS_AMOUNT;
+
+	
+	for (int i = indI; i < indJ; i++)
+	{
+		digitPlace *= DIFFRENT_SIGNS_AMOUNT;
+	}
+	int signJ = (number / digitPlace) % DIFFRENT_SIGNS_AMOUNT;
+	
+
+	return signI == signJ;
 }
 
 //i и j
@@ -188,7 +221,7 @@ int SwapTwoSigns(int number, int indI, int indJ)
 	int IwDecade = digitPlaceI * signI;
 
 	int digitPlaceJ = digitPlaceI;
-	for (int i = 0; i < indJ - indI; i++)
+	for (int i = indI; i < indJ; i++)
 	{
 		digitPlaceJ *= DIFFRENT_SIGNS_AMOUNT;
 	}
@@ -203,23 +236,42 @@ int SwapTwoSigns(int number, int indI, int indJ)
 	return number;
 }
 
+void makeMove(struct Game* game)
+{
+	makeGuess(game, game->bestGuess);
+	LogMove(game);
+	(*game->move)++;
+}
+
 
 
 int GameLoop(struct Game *game)
 {
+	game->knownComposition = calloc(DIFFRENT_SIGNS_AMOUNT, sizeof(int));
+	game->guessHistory = calloc((int)(MYSTERY_NUMBER_LENGTH * log2(DIFFRENT_SIGNS_AMOUNT) + 2), (sizeof(struct Guess)));
+	game->bulls = calloc(1, sizeof(int));
+	game->cows = calloc(1, sizeof(int));
+	game->move = calloc(1, sizeof(int));
+
+	int won = 0;
+
 	game->MysterNumber = abs(rand()) % 1296; // 6^4 = 1296
+	game->MysterNumber = 368;
+	
+
 	printf_s("Mystery Number is: ");
 	printNumber(game->MysterNumber);
 	printf_s("\n");
 
 
 	//Определяем состав загаданного числа
-	int knownCompAmount = 0;
+
+	//известное кол-во цифр
+	int knownCompAmount = 0; 
 	for (int i = 0; i < DIFFRENT_SIGNS_AMOUNT-1; i++)
 	{
-		makeGuess(game, MakeNumberAllOneSign(i));
-		LogMove(game);
-		(*game->move)++;
+		game->bestGuess = MakeNumberAllOneSign(i);
+		makeMove(game);
 
 		if (game->bulls != 0)
 		{
@@ -229,54 +281,171 @@ int GameLoop(struct Game *game)
 		if (knownCompAmount >= MYSTERY_NUMBER_LENGTH)
 			break;
 	}
+
+	//Для последней цифры исключением
 	if(MYSTERY_NUMBER_LENGTH > knownCompAmount)
 		game->knownComposition[DIFFRENT_SIGNS_AMOUNT - 1] = MYSTERY_NUMBER_LENGTH - knownCompAmount;
 	
-	//make best Guess
-	game->knownNumber = makeBestGuessedNumber(game->knownComposition);
 
 
-	makeGuess(game, game->knownNumber);
-	LogMove(game);
+	//Знаем состав, теперь собираем число
+	game->bestGuess = makeLowestNumber(game->knownComposition);
+
+
+	makeMove(game);
 	if (*game->bulls == MYSTERY_NUMBER_LENGTH)
-		return;
-	(*game->move)++;
+		won = 1;
+
+
+	
+	
+
 
 	int lastBulls = *game->bulls;
-	
-	int toSkipCycle = 0;
-	for (int i = 0; (i < MYSTERY_NUMBER_LENGTH - 1) && !(toSkipCycle); i++)
+	int indOfFirstUndetermined = -1; //При изменении на 1, -1, запоминаем i неопределённого числа; -1, чтоб было видно, что это ещё не определено
+	int indOfSecondUndetermined = -1;
+	int bullDiff;
+	for (int j = 0; (j < MYSTERY_NUMBER_LENGTH - 2) & !won; j++)
 	{
-
-
-
-		game->knownNumber = SwapTwoSigns(game->knownNumber, i, i+1); //Пузырьком перебор
-		makeGuess(game, game->knownNumber);
-		LogMove(game);
-		if (*game->bulls == MYSTERY_NUMBER_LENGTH)
-			return;
-		(*game->move)++;
 		
-		int bullDiff = lastBulls - *game->bulls;
 
-		switch (bullDiff)
+		for (int i = 0, nextIndDis = 1; (i < MYSTERY_NUMBER_LENGTH - 1) & !won;  nextIndDis = 1 )
 		{
-			case 2:
+			
+
+
+			while (
+				( (1 << i + nextIndDis) & game->knownMasc) |						//Уже найденные цифры не трогаем
+				CheckIfTwoSignsAreSame(game->bestGuess, i, i + nextIndDis) &		//Одинаковые цифры скипаем
+				( (i+ nextIndDis) < MYSTERY_NUMBER_LENGTH - 1 )						//Не уходим за пределы числа
+			) 
+				nextIndDis++;
+
+			game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis); //Перебор пузырьком 
+
+			makeMove(game);
+			if (*game->bulls == MYSTERY_NUMBER_LENGTH)
+				won = 1;
+
+			bullDiff = *game->bulls - lastBulls;
+
+
+
+			switch (bullDiff)
+			{
+
 			case -2:
-				game->knownMasc &= 1 >> i;
-				game->knownMasc &= 1 >> i+1;
-				game->knownNumber = SwapTwoSigns(game->knownNumber, i, i + 1);
-				i++;
+				game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis); //Возвращаем 
+			case 2:
+				lastBulls = *game->bulls;
+
+				game->knownMasc = game->knownMasc | (1 << i);
+				game->knownMasc = game->knownMasc | (1 << i + nextIndDis); //Отмечаем что эти два числа на месте
 				break;
 
-				/*game->knownMasc &= 1 >> i-1;
-				game->knownMasc &= 1 >> i;
-				game->knownNumber = SwapTwoSigns(game->knownNumber, i, i + 1);
-				toSkipCycle = 1;
-				break;*/
+			case -1:
+				lastBulls = *game->bulls;
+
+				if (indOfFirstUndetermined < 0) //Первый раз возникла неопределённость
+				{
+					indOfFirstUndetermined = i;
+					indOfSecondUndetermined = i + nextIndDis;
+				}
+				else
+				{
+					game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis); //Возвращаем
+					game->knownMasc = game->knownMasc | (1 << i); //Отмечаем что цифра на месте
+					indOfFirstUndetermined = -1;
+					lastBulls++;
+				}
+
+				break;
+			case 1:
+			{
+				lastBulls = *game->bulls;
+
+				if (indOfFirstUndetermined < 0) //Первый раз возникла неопределённость
+				{
+					indOfFirstUndetermined = i;
+					indOfSecondUndetermined = i + nextIndDis;
+				}
+				else
+				{
+					game->knownMasc = game->knownMasc | (1 << i+nextIndDis);
+
+					if (bullDiff == 1) //Неопределённость между i и i+nextInd
+					{
+						indOfFirstUndetermined = i;
+						indOfSecondUndetermined = i+ nextIndDis;
+					}
+				}
+
+				break;
+			}
+			case 0:
+				lastBulls = *game->bulls;
+
+				if (indOfFirstUndetermined >= 0)
+				{
+					game->knownMasc = game->knownMasc | (1 << indOfFirstUndetermined);
+					indOfFirstUndetermined = -1; //неопределённость разрешена
+					/*nextUndeterminedIndDis = 0;*/
+				}
+
+				break;
+
+
+			}
+
+			i = i + nextIndDis;
+
 		}
+		//if (indOfFirstUndetermined >= 0) //Если на последней цифре осталась неопределённость
+		//{
+		//	game->bestGuess = SwapTwoSigns(game->bestGuess, indOfFirstUndetermined, indOfSecondUndetermined); //Возвращаем
+		//	if(bullDiff > 0)
+		//		game->knownMasc = game->knownMasc | (1 << indOfFirstUndetermined); //Отмечаем что последняя цифра на месте
+		//	else
+		//		game->knownMasc = game->knownMasc | (1 << indOfSecondUndetermined); //Отмечаем что предпоследняя цифра на месте
+		//	indOfFirstUndetermined = -1;
+		//	lastBulls++;
+		//}
 
 	}
+	if (!won) //Ищем два оставшихся не опознанных числа
+	{
+		int indI, indJ;
+		for (int i = 0; i < MYSTERY_NUMBER_LENGTH; i++)
+			if (!(1 << i & game->knownMasc)) //Если 0 на позиции
+			{
+				indI = i;
+				break;
+			}
+
+		for (int i = indI + 1; i < MYSTERY_NUMBER_LENGTH; i++)
+			if (!(1 << i & game->knownMasc))
+			{
+				indJ = i;
+				break;
+			}
+
+		game->bestGuess = SwapTwoSigns(game->bestGuess, indI, indJ);
+		makeMove(game);
+	}
+	
+
+
+
+		
+		
+
+
+	free(game->knownComposition);
+	free(game->guessHistory);
+	free(game->bulls);
+	free(game->cows);
+	free(game->move);
+	return;
 }
 
 
@@ -301,19 +470,20 @@ int main()
 
 
 	struct Game* game = calloc(1, sizeof(struct Game));
-	game->knownComposition = calloc(DIFFRENT_SIGNS_AMOUNT, sizeof(int));
-	game->guessHistory = calloc((int)(MYSTERY_NUMBER_LENGTH * log2(DIFFRENT_SIGNS_AMOUNT) + 2), (sizeof(struct Guess)));
-	game->bulls = calloc(1, sizeof(int));
-	game->cows = calloc(1, sizeof(int));
-	game->move = calloc(1, sizeof(int));
+	
 
 	
 
 	int guessNumber = 0;
 	
 	
+	for (int i = 0; i < 15; i++)
+	{
+		GameLoop(game);
+		printf_s("\n\n\n");
 
-	GameLoop(game);
+	}
+
 
 
 	return 0;
