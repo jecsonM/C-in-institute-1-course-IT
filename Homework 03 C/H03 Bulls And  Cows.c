@@ -46,14 +46,74 @@ struct Game {
 
 	int MysterNumber; //загаданное число
 	struct Guess* guessHistory;
-	int* move;
+	int move;
 	int* cows;
 	int* bulls;
 	int possibleAnswers;
 	int maxMove;
 };
 
+int check_guess(const int secret[], const int guess[], struct Game *game)
+{
+	int bulls =0, cows=0;
+	
 
+
+	int* bullsBySign = calloc(DIFFRENT_SIGNS_AMOUNT, sizeof(int));
+	int* mysteryNumberBySign = calloc(DIFFRENT_SIGNS_AMOUNT, sizeof(int));
+	
+
+
+
+	//считаем bullsBySign - цифра на своём месте и mysteryNumberBySign состав загадки
+	for (int i = 0; i < MYSTERY_NUMBER_LENGTH; i++)
+	{
+		mysteryNumberBySign[secret[i]]++;
+		if (secret[i] == guess[i])
+			bullsBySign[secret[i]]++;
+
+	}
+
+	//Считаем быков
+	for (int i = 0; i < DIFFRENT_SIGNS_AMOUNT; i++)
+		bulls += bullsBySign[i];
+
+	
+	//Считаем коров. Если 
+	for (int i = 0; i < MYSTERY_NUMBER_LENGTH; i++)
+	{
+		for (int j = 0; j < MYSTERY_NUMBER_LENGTH; j++)
+		{
+			if ((guess[j] == secret[i]) && (mysteryNumberBySign[secret[j]] > 0))
+			{
+				mysteryNumberBySign[secret[j]]--;
+
+				if (bullsBySign[secret[j]] > 0)
+					bullsBySign[secret[j]]--;
+				else
+					cows++;
+
+				break;
+			}
+		}
+
+
+	}
+
+	int decade = 1;
+	int guessNumber = 0;
+	for (int i = 0; i < MYSTERY_NUMBER_LENGTH; i++)
+	{
+		guessNumber += decade * guess[MYSTERY_NUMBER_LENGTH-i-1];
+	}
+	game->guessHistory[game->move] = (struct Guess){ guessNumber, bulls, cows };
+
+	free(bullsBySign);
+	free(mysteryNumberBySign);
+
+
+	return 10*bulls + cows;
+}
 
 void makeGuess(struct Game* game, int guessNumber)
 {
@@ -117,7 +177,7 @@ void makeGuess(struct Game* game, int guessNumber)
 
 	}
 
-	game->guessHistory[*game->move] = (struct Guess){guessNumber, *bulls, *cows};
+	game->guessHistory[game->move] = (struct Guess){guessNumber, *bulls, *cows};
 
 	free(bullsBySign);
 	free(mysteryNumberBySign);
@@ -142,16 +202,16 @@ void printNumber(int number)
 void LogMove(const struct Game* game, int toLogRemained)
 {
 
-	printf_s("Move %i:", *game->move);
+	printf_s("Move %i:", game->move);
 	printNumber(
-		game->guessHistory[*game->move].guessNumber
+		game->guessHistory[game->move].guessNumber
 	);
 	if (toLogRemained)
 	{
-		printf_s("\t  bulls:%i cows:%i\tremained: %i\n", game->guessHistory[*game->move].bulls, game->guessHistory[*game->move].cows, game->possibleAnswers);
+		printf_s("\t  bulls:%i cows:%i\tremained: %i\n", game->guessHistory[game->move].bulls, game->guessHistory[game->move].cows, game->possibleAnswers);
 	}
 	else
-		printf_s("\t  bulls:%i cows:%i\t", game->guessHistory[*game->move].bulls, game->guessHistory[*game->move].cows);
+		printf_s("\t  bulls:%i cows:%i\t", game->guessHistory[game->move].bulls, game->guessHistory[game->move].cows);
 }
 
 //Наименьшее из цифр
@@ -253,13 +313,13 @@ void makeMove(struct Game* game, int toLogRemained)
 	if (*game->bulls == 4) game->possibleAnswers = 1;
 	
 	LogMove(game, toLogRemained);
-	(*game->move)++;
+	(game->move)++;
 }
 
 int IsAlreadyGuessed(struct Game* game, int guessNumber)
 {
 	int isAlreadyGuessed = 0;
-	for (int i = 0; i < *game->move & !isAlreadyGuessed; i++)
+	for (int i = 0; i < game->move & !isAlreadyGuessed; i++)
 	{
 		isAlreadyGuessed |= game->guessHistory->guessNumber == guessNumber;
 	}
@@ -308,7 +368,8 @@ int GameLoop(struct Game* game, int mysteryNumber)
 	game->guessHistory = calloc((int)(DIFFRENT_SIGNS_AMOUNT + MYSTERY_NUMBER_LENGTH * (MYSTERY_NUMBER_LENGTH-1)), (sizeof(struct Guess)));
 	game->bulls = calloc(1, sizeof(int));
 	game->cows = calloc(1, sizeof(int));
-	game->move = calloc(1, sizeof(int));
+
+	game->move = 0;
 	game->knownMasc = 0;
 	game->possibleAnswers = (int)powl(DIFFRENT_SIGNS_AMOUNT, MYSTERY_NUMBER_LENGTH);
 
@@ -502,8 +563,8 @@ int GameLoop(struct Game* game, int mysteryNumber)
 
 
 
-	if (game->maxMove < *game->move)
-		game->maxMove = *game->move;
+	if (game->maxMove < game->move)
+		game->maxMove = game->move;
 		
 	
 
@@ -511,7 +572,6 @@ int GameLoop(struct Game* game, int mysteryNumber)
 	free(game->guessHistory);
 	free(game->bulls);
 	free(game->cows);
-	free(game->move);
 	return;
 }
 
@@ -537,9 +597,21 @@ int main()
 
 
 	struct Game* game = calloc(1, sizeof(struct Game));
+	game->guessHistory = calloc((int)(DIFFRENT_SIGNS_AMOUNT + MYSTERY_NUMBER_LENGTH * (MYSTERY_NUMBER_LENGTH - 1)), (sizeof(struct Guess)));
+	///ПРОВЕРКИ ФУНКЦИЙ ИЗ ДЗ
 	
-	
-	
+	int secret[] = { 1,2,2,3 };
+	int guess[] = { 1,1,1,1},
+		guess2[] = {1,2,3,4},
+		guess3[] = { 2,2,1,1 };
+	printf_s("secret\tguess\n");
+	printf_s("{ 1,2,2,3 }\t{ 1,1,1,1 }\t%i\n", check_guess(secret, guess, game) );
+	printf_s("{ 1,2,2,3 }\t{ 1,2,3,4 }\t%i\n", check_guess(secret, guess2, game));
+	printf_s("{ 1,2,2,3 }\t{ 2,2,1,1 }\t%i\n", check_guess(secret, guess3, game));
+
+	free(game->guessHistory);
+
+	///Своя разработка
 	
 	for (int i = 0; i < 5; i++)
 	{
