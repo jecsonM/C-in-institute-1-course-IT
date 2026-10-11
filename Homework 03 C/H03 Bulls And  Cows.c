@@ -167,7 +167,6 @@ int makeLowestNumber(int* knownComposition)
 }
 
 
-//i и j
 int CheckIfTwoSignsAreSame(int number, int indI, int indJ)
 {
 	
@@ -199,7 +198,6 @@ int CheckIfTwoSignsAreSame(int number, int indI, int indJ)
 	return signI == signJ;
 }
 
-//i и j
 int SwapTwoSigns(int number, int indI, int indJ)
 {
 	indI = MYSTERY_NUMBER_LENGTH - indI-1;
@@ -245,7 +243,7 @@ void makeMove(struct Game* game)
 
 
 
-int GameLoop(struct Game *game)
+int GameLoop(struct Game* game, int mysteryNumber)
 {
 	game->knownComposition = calloc(DIFFRENT_SIGNS_AMOUNT, sizeof(int));
 	game->guessHistory = calloc((int)(MYSTERY_NUMBER_LENGTH * log2(DIFFRENT_SIGNS_AMOUNT) + 2), (sizeof(struct Guess)));
@@ -255,9 +253,10 @@ int GameLoop(struct Game *game)
 
 	int won = 0;
 
-	game->MysterNumber = abs(rand()) % 1296; // 6^4 = 1296
-	game->MysterNumber = 368;
 	
+	game->MysterNumber = mysteryNumber; 
+	
+
 
 	printf_s("Mystery Number is: ");
 	printNumber(game->MysterNumber);
@@ -267,8 +266,8 @@ int GameLoop(struct Game *game)
 	//Определяем состав загаданного числа
 
 	//известное кол-во цифр
-	int knownCompAmount = 0; 
-	for (int i = 0; i < DIFFRENT_SIGNS_AMOUNT-1; i++)
+	int knownCompAmount = 0;
+	for (int i = 0; i < DIFFRENT_SIGNS_AMOUNT - 1; i++)
 	{
 		game->bestGuess = MakeNumberAllOneSign(i);
 		makeMove(game);
@@ -283,9 +282,9 @@ int GameLoop(struct Game *game)
 	}
 
 	//Для последней цифры исключением
-	if(MYSTERY_NUMBER_LENGTH > knownCompAmount)
+	if (MYSTERY_NUMBER_LENGTH > knownCompAmount)
 		game->knownComposition[DIFFRENT_SIGNS_AMOUNT - 1] = MYSTERY_NUMBER_LENGTH - knownCompAmount;
-	
+
 
 
 	//Знаем состав, теперь собираем число
@@ -297,124 +296,122 @@ int GameLoop(struct Game *game)
 		won = 1;
 
 
-	
-	
+
+
 
 
 	int lastBulls = *game->bulls;
-	int indOfFirstUndetermined = -1; //При изменении на 1, -1, запоминаем i неопределённого числа; -1, чтоб было видно, что это ещё не определено
-	int indOfSecondUndetermined = -1;
 	int bullDiff;
-	for (int j = 0; (j < MYSTERY_NUMBER_LENGTH - 2) & !won; j++)
+	int knownAmount = 0; //Кол-во цифр, у которых мы точно знаем положение
+
+	int indOfFirstUndetermined = -1;
+	int indOfSecondUndetermined = -1;
+	for (int j = 0; (j < (MYSTERY_NUMBER_LENGTH - 1)) & !won; j++) 
 	{
 		
-
-		for (int i = 0, nextIndDis = 1; (i < MYSTERY_NUMBER_LENGTH - 1) & !won;  nextIndDis = 1 )
+		
+		for (
+				int i = 0 , nextIndDis = 1;
+				(i+nextIndDis < MYSTERY_NUMBER_LENGTH)  & !won; 
+				i = i + nextIndDis, nextIndDis = 1
+			)
 		{
-			
+
 
 
 			while (
-				( (1 << i + nextIndDis) & game->knownMasc) |						//Уже найденные цифры не трогаем
-				CheckIfTwoSignsAreSame(game->bestGuess, i, i + nextIndDis) &		//Одинаковые цифры скипаем
-				( (i+ nextIndDis) < MYSTERY_NUMBER_LENGTH - 1 )						//Не уходим за пределы числа
-			) 
+				(
+					((1 << i + nextIndDis) & game->knownMasc) |						//Уже найденные цифры не трогаем
+				CheckIfTwoSignsAreSame(game->bestGuess, i, i + nextIndDis)
+					) &		//Одинаковые цифры скипаем
+				(i + nextIndDis < MYSTERY_NUMBER_LENGTH-1)						//Не уходим за пределы числа
+			)
 				nextIndDis++;
 
 			game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis); //Перебор пузырьком 
 
 			makeMove(game);
-			if (*game->bulls == MYSTERY_NUMBER_LENGTH)
+
+			if (*game->bulls >= MYSTERY_NUMBER_LENGTH)
 				won = 1;
-
+			
 			bullDiff = *game->bulls - lastBulls;
+			lastBulls = *game->bulls;
 
-
-
-			switch (bullDiff)
+			if (!won)
 			{
-
-			case -2:
-				game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis); //Возвращаем 
-			case 2:
-				lastBulls = *game->bulls;
-
-				game->knownMasc = game->knownMasc | (1 << i);
-				game->knownMasc = game->knownMasc | (1 << i + nextIndDis); //Отмечаем что эти два числа на месте
-				break;
-
-			case -1:
-				lastBulls = *game->bulls;
-
-				if (indOfFirstUndetermined < 0) //Первый раз возникла неопределённость
+				switch (bullDiff)
 				{
-					indOfFirstUndetermined = i;
-					indOfSecondUndetermined = i + nextIndDis;
-				}
-				else
-				{
-					game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis); //Возвращаем
-					game->knownMasc = game->knownMasc | (1 << i); //Отмечаем что цифра на месте
-					indOfFirstUndetermined = -1;
-					lastBulls++;
-				}
 
-				break;
-			case 1:
-			{
-				lastBulls = *game->bulls;
+				case -2:
+					game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis);
+					lastBulls += 2;
+				case 2:
+					game->knownMasc |= 1 << i;
+					game->knownMasc |= 1 << i + nextIndDis;
+					knownAmount += 2;
 
-				if (indOfFirstUndetermined < 0) //Первый раз возникла неопределённость
-				{
-					indOfFirstUndetermined = i;
-					indOfSecondUndetermined = i + nextIndDis;
-				}
-				else
-				{
-					game->knownMasc = game->knownMasc | (1 << i+nextIndDis);
+					if (knownAmount >= MYSTERY_NUMBER_LENGTH - 2)
+						won = 1;
 
-					if (bullDiff == 1) //Неопределённость между i и i+nextInd
+					break;
+
+				case 0:
+
+					if (indOfFirstUndetermined > 0)
+					{
+						indOfSecondUndetermined = i + nextIndDis;
+					}
+					if (lastBulls == knownAmount + 1)
+					{
+						if (indOfFirstUndetermined < 0)
+						{
+							indOfFirstUndetermined = i;
+							indOfSecondUndetermined = i + nextIndDis;
+						}
+					}
+
+					break;
+
+				case -1:
+					game->bestGuess = SwapTwoSigns(game->bestGuess, i, i + nextIndDis);
+					lastBulls += 1;
+
+				case 1:
+
+					if (indOfFirstUndetermined < 0)
 					{
 						indOfFirstUndetermined = i;
-						indOfSecondUndetermined = i+ nextIndDis;
+						indOfSecondUndetermined = i + nextIndDis;
 					}
+					else
+					{
+						indOfFirstUndetermined = i;
+						indOfSecondUndetermined = i + nextIndDis;
+						/*game->knownMasc |= 1 << indOfSecondUndetermined;
+						indOfFirstUndetermined = -1;*/
+					}
+					
+
+					break;
 				}
-
-				break;
 			}
-			case 0:
-				lastBulls = *game->bulls;
-
-				if (indOfFirstUndetermined >= 0)
-				{
-					game->knownMasc = game->knownMasc | (1 << indOfFirstUndetermined);
-					indOfFirstUndetermined = -1; //неопределённость разрешена
-					/*nextUndeterminedIndDis = 0;*/
-				}
-
-				break;
-
-
-			}
-
-			i = i + nextIndDis;
-
+			
 		}
-		//if (indOfFirstUndetermined >= 0) //Если на последней цифре осталась неопределённость
-		//{
-		//	game->bestGuess = SwapTwoSigns(game->bestGuess, indOfFirstUndetermined, indOfSecondUndetermined); //Возвращаем
-		//	if(bullDiff > 0)
-		//		game->knownMasc = game->knownMasc | (1 << indOfFirstUndetermined); //Отмечаем что последняя цифра на месте
-		//	else
-		//		game->knownMasc = game->knownMasc | (1 << indOfSecondUndetermined); //Отмечаем что предпоследняя цифра на месте
-		//	indOfFirstUndetermined = -1;
-		//	lastBulls++;
-		//}
 
+		//Если ничего не нашли, то попадаем в цикл, поэтому нужно из него выйти
+		if (game->knownMasc == 0)
+		{
+			game->bestGuess = SwapTwoSigns(game->bestGuess, 0, 2);
+			game->bestGuess = SwapTwoSigns(game->bestGuess, 0, 1);
+			indOfFirstUndetermined = -1;
+		}
 	}
-	if (!won) //Ищем два оставшихся не опознанных числа
+
+
+	if (lastBulls < MYSTERY_NUMBER_LENGTH)
 	{
-		int indI, indJ;
+		int indI = -1, indJ = -1;
 		for (int i = 0; i < MYSTERY_NUMBER_LENGTH; i++)
 			if (!(1 << i & game->knownMasc)) //Если 0 на позиции
 			{
@@ -428,10 +425,12 @@ int GameLoop(struct Game *game)
 				indJ = i;
 				break;
 			}
-
-		game->bestGuess = SwapTwoSigns(game->bestGuess, indI, indJ);
+			game->bestGuess = SwapTwoSigns(game->bestGuess, indI, indJ);
 		makeMove(game);
 	}
+	
+
+
 	
 
 
@@ -476,10 +475,13 @@ int main()
 
 	int guessNumber = 0;
 	
+
+	GameLoop(game, 852);
+	printf_s("TEST-TEST-TEST-TEST \n\n\n");
 	
 	for (int i = 0; i < 15; i++)
 	{
-		GameLoop(game);
+		GameLoop(game, abs(rand()) % (int)round(pow(DIFFRENT_SIGNS_AMOUNT, MYSTERY_NUMBER_LENGTH)) );
 		printf_s("\n\n\n");
 
 	}
