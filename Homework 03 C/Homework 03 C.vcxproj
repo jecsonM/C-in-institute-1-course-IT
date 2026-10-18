@@ -139,7 +139,13 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="GameBullsAndCows.c" />
+    <ClCompile Include="GameBullsAndCows.h" />
+    <ClCompile Include="GameOnlyBulls.c" />
     <ClCompile Include="H03 Bulls And  Cows.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GameOnlyBulls.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

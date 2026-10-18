@@ -18,5 +18,19 @@
     <ClCompile Include="H03 Bulls And  Cows.c">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="GameOnlyBulls.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="GameBullsAndCows.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClCompile>
+    <ClCompile Include="GameBullsAndCows.c">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GameOnlyBulls.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
