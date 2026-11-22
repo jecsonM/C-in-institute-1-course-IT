@@ -166,7 +166,7 @@ int main(void) {
                 print_record(&db.items[i]);
 
                 printf_s("author title year: ");
-                Record r = db.items[i];          /* ключ не меняется */
+                Record r = db.items[i];          
 
 
                 if (scanf_s("%31s %63s %d",
@@ -177,7 +177,7 @@ int main(void) {
             }
 
         }
-        else if (cmd == 5) {                   /* удалить */
+        else if (cmd == 5) {                   //delete
             int key;
             printf_s("Ключ: ");
             if (scanf_s("%d", &key) != 1) break;
