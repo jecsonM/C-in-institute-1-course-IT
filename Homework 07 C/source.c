@@ -397,6 +397,8 @@ int main()
 
 	printf_s("------PART 3-----\n\n");
 
+	srand((unsigned)time(NULL));
+
 	char key_vigenere[5] = "aaaa";
 	for (int i = 0; i < 5; i++)
 	{
@@ -408,6 +410,17 @@ int main()
 		crack_vigenere(encryptedText, KEY_LEN, key_vigenere);
 
 		decrypt(encryptedText, key_vigenere, text);
+
+		printf_s("with: \"%s\"\nDecrypted:\n\"%s\"\n\n", key_vigenere, text);
+	}
+
+
+	printf_s("------DECRYPT-----\n\n");
+	{
+		for (int j = 0; j < KEY_LEN; j++) key_vigenere[j] = rand() % ALPHABET_SIZE + 'a';
+
+		crack_vigenere(VIGENERE, KEY_LEN, key_vigenere);
+		decrypt(VIGENERE, key_vigenere, text);
 
 		printf_s("with: \"%s\"\nDecrypted:\n\"%s\"\n\n", key_vigenere, text);
 	}
